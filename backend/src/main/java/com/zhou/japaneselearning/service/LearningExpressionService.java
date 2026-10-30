@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.zhou.japaneselearning.entity.LearningExpression;
 import com.zhou.japaneselearning.entity.LearningStage;
+import com.zhou.japaneselearning.exception.ExpressionNotFoundException;
 import com.zhou.japaneselearning.repository.LearningExpressionRepository;
 
 /**
@@ -21,7 +22,14 @@ import com.zhou.japaneselearning.repository.LearningExpressionRepository;
  * 入力チェック・ID採番・初期学習状態の決定といった業務判断はここで行い、
  * DBの読み書きそのものはRepositoryへ委譲する。Controllerからは本クラスのメソッドを呼び出す想定。</p>
  *
- * <p>現時点の実装範囲は BIZ-01 表現登録 / BIZ-02 表現ID採番 のみ。</p>
+ * <p>担当する業務処理(復習に関する BIZ-03 / BIZ-04 は {@link ReviewService} が担当する):</p>
+ * <ul>
+ *   <li>BIZ-01 表現登録 / BIZ-02 表現ID採番</li>
+ *   <li>BIZ-05 表現検索(ID検索・キーワード検索)</li>
+ *   <li>BIZ-06 表現編集</li>
+ *   <li>BIZ-07 学習状況集計</li>
+ *   <li>BIZ-08 表現削除</li>
+ * </ul>
  */
 @Service
 public class LearningExpressionService {
@@ -147,7 +155,136 @@ public class LearningExpressionService {
     }
 
     /**
-     * 必須項目が未入力(null)・空文字・空白のみでないことを確認する(BIZ-01 処理内容1)。
+     * BIZ-05 表現検索(ID検索)。表現IDの完全一致で1件を取得する。
+     *
+     * <p>結果は最大1件のため、一覧ではなく1件のEntityを返す。対象が存在しない場合は
+     * 「対象なし」として ExpressionNotFoundException を送出する(BIZ-05 処理内容4 / API-05 404)。</p>
+     *
+     * @param expressionId 検索する表現ID(1以上の正整数)
+     * @return 該当する学習表現
+     * @throws IllegalArgumentException    表現IDが1未満の場合
+     * @throws ExpressionNotFoundException 該当する表現が存在しない場合
+     */
+    @Transactional(readOnly = true)
+    public LearningExpression findById(int expressionId) {
+        requirePositiveId(expressionId);
+        return repository.findById(expressionId)
+                .orElseThrow(() -> new ExpressionNotFoundException(expressionId));
+    }
+
+    /**
+     * BIZ-05 表現検索(キーワード検索)。
+     *
+     * <p>中国語例文・日本語表現・表現及び中国語意味の3項目を部分一致で検索し、表現IDの昇順で返す。
+     * 備考は検索対象外。キーワード中の % _ \ はRepository側で通常の文字として扱われる。</p>
+     *
+     * <p>未入力・空白のみのキーワードは不正入力とする(BIZ-05 処理内容2 / API設計書 6章)。
+     * 全件表示を意図した空検索は設計上存在しないため、空文字で全件を返すことはしない。
+     * キーワードの前後の空白は除去せず、入力されたまま検索条件とする(BIZ-01 と同様に入力値を加工しない)。</p>
+     *
+     * @param keyword 検索キーワード
+     * @return 検索結果(表現ID昇順)。該当0件の場合は空リスト
+     * @throws IllegalArgumentException キーワードが未入力・空白のみの場合
+     */
+    @Transactional(readOnly = true)
+    public List<LearningExpression> searchByKeyword(String keyword) {
+        requireNotBlank(keyword, "keyword");
+        return repository.searchByKeyword(keyword);
+    }
+
+    /**
+     * BIZ-06 表現編集。学習内容の4項目のみを更新し、学習進捗は変更しない。
+     *
+     * <p>更新するのは 中国語例文・日本語表現・表現及び中国語意味・備考 と 更新日時 のみ。
+     * 表現ID・学習段階・正誤回数・復習日・登録日時は変更しない(BIZ-06 更新不可項目)。
+     * このメソッドはそれらの項目を引数として受け取らないため、呼び出し側から変更されることはない。</p>
+     *
+     * <p>処理順は詳細設計書の処理内容に従い「対象確認 → 必須項目チェック → 更新」とする。
+     * 対象確認から更新完了までを1トランザクションとする(詳細設計書 10章)。</p>
+     *
+     * @param expressionId      編集対象の表現ID(1以上の正整数)
+     * @param promptText        中国語例文(必須)
+     * @param answerText        日本語表現(必須)
+     * @param expressionMeaning 表現及び中国語意味(必須)
+     * @param note              備考(任意。null を指定すると備考を削除する)
+     * @return 更新後の学習表現
+     * @throws IllegalArgumentException    表現IDが1未満、または必須項目が未入力・空白のみの場合
+     * @throws ExpressionNotFoundException 編集対象の表現が存在しない場合
+     */
+    @Transactional
+    public LearningExpression update(int expressionId, String promptText, String answerText,
+            String expressionMeaning, String note) {
+        // 1. 対象表現を確認する(ID不正・対象なしの判定は findById と共通)。
+        //    同一クラス内のメソッド呼び出しはSpringのトランザクション制御(プロキシ)を経由しないため、
+        //    findById の readOnly 指定は適用されず、このメソッドの更新可能なトランザクションの中で実行される。
+        LearningExpression expression = findById(expressionId);
+
+        // 2. 必須3項目の入力チェック
+        requireNotBlank(promptText, "promptText");
+        requireNotBlank(answerText, "answerText");
+        requireNotBlank(expressionMeaning, "expressionMeaning");
+
+        // 3. 学習内容の4項目のみ更新する(4. 学習状態・正誤回数・復習日には触れない)
+        expression.setPromptText(promptText);
+        expression.setAnswerText(answerText);
+        expression.setExpressionMeaning(expressionMeaning);
+        expression.setNote(note);
+        // 5. 更新日時を現在日時にする
+        expression.setUpdatedAt(LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS));
+
+        return repository.save(expression);
+    }
+
+    /**
+     * BIZ-07 学習状況集計。ホーム画面に表示する登録表現数と今日の復習件数を取得する。
+     *
+     * <p>今日の復習件数は BIZ-03 と同一の抽出条件で数える必要があるため、
+     * 同じ条件定義を共有する Repository#countTodayReviewTargets を使用する。
+     * 2件の集計を1つの読み取り専用トランザクションで行い、同一時点の値として返す。</p>
+     *
+     * @return 登録表現数(MASTEREDを含む全件)と今日の復習件数
+     */
+    @Transactional(readOnly = true)
+    public LearningStatistics getLearningStatistics() {
+        long registeredExpressionCount = repository.count();
+        long todayReviewCount = repository.countTodayReviewTargets(LocalDate.now(clock));
+        return new LearningStatistics(registeredExpressionCount, todayReviewCount);
+    }
+
+    /**
+     * BIZ-08 表現削除。指定した表現を物理削除する。
+     *
+     * <p>削除は復習結果(正解・不正解)として扱わないため、正誤回数や最終復習日の更新は行わずに行ごと削除する。
+     * 削除により空いた表現IDは、次回の登録時に BIZ-02 の採番で再利用される(本メソッドでの特別な処理は不要)。</p>
+     *
+     * <p>存在確認から削除完了までを1トランザクションとする(詳細設計書 10章)。
+     * Spring Data の deleteById は対象が存在しない場合に何もせず終了するため、
+     * 設計どおり「存在しない場合は対象なし」とするよう、先に取得してから削除している。</p>
+     *
+     * @param expressionId 削除対象の表現ID(1以上の正整数)
+     * @throws IllegalArgumentException    表現IDが1未満の場合
+     * @throws ExpressionNotFoundException 削除対象の表現が存在しない場合
+     */
+    @Transactional
+    public void delete(int expressionId) {
+        LearningExpression expression = findById(expressionId);
+        repository.delete(expression);
+    }
+
+    /**
+     * 表現IDが1以上の正整数であることを確認する(BIZ-05 ID検索の入力条件 / API-05・07・08 の400条件)。
+     *
+     * <p>0以下のIDは存在し得ない(DBのCHECK制約 expression_id > 0)ため、検索・編集・削除の前に
+     * 「対象なし」ではなく「入力不正」として扱う。</p>
+     */
+    private static void requirePositiveId(int expressionId) {
+        if (expressionId < 1) {
+            throw new IllegalArgumentException("expressionId は1以上の正整数で指定してください。");
+        }
+    }
+
+    /**
+     * 必須項目が未入力(null)・空文字・空白のみでないことを確認する(BIZ-01 / BIZ-06 の必須3項目、BIZ-05 のキーワード)。
      *
      * <p>String#isBlank は半角スペースだけでなく全角スペース(U+3000)・タブ・改行も空白と判定する。</p>
      *
