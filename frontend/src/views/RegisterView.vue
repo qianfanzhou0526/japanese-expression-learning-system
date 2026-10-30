@@ -114,48 +114,53 @@ function closeCompletionMessage() {
   <form class="card" novalidate @submit.prevent="submit">
     <p class="form-note"><span class="required-mark">*</span> は必須項目です。</p>
 
-    <div class="form-field">
-      <label for="promptText">中国語例文<span class="required-mark">*</span></label>
-      <textarea
-        id="promptText"
-        ref="promptTextInput"
-        v-model="form.promptText"
-        rows="3"
-        :aria-invalid="fieldErrors.promptText ? 'true' : 'false'"
-        @input="clearFieldError('promptText')"
-      ></textarea>
-      <p v-if="fieldErrors.promptText" class="field-error">{{ fieldErrors.promptText }}</p>
-    </div>
+    <!-- PCでは 2列×2行(左上→右上→左下→右下の順)、狭い画面では1列で表示する -->
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="promptText">中国語例文<span class="required-mark">*</span></label>
+        <textarea
+          id="promptText"
+          ref="promptTextInput"
+          v-model="form.promptText"
+          rows="3"
+          :aria-invalid="fieldErrors.promptText ? 'true' : 'false'"
+          @input="clearFieldError('promptText')"
+        ></textarea>
+        <p v-if="fieldErrors.promptText" class="field-error">{{ fieldErrors.promptText }}</p>
+      </div>
 
-    <div class="form-field">
-      <label for="answerText">日本語表現<span class="required-mark">*</span></label>
-      <textarea
-        id="answerText"
-        v-model="form.answerText"
-        rows="3"
-        :aria-invalid="fieldErrors.answerText ? 'true' : 'false'"
-        @input="clearFieldError('answerText')"
-      ></textarea>
-      <p v-if="fieldErrors.answerText" class="field-error">{{ fieldErrors.answerText }}</p>
-    </div>
+      <div class="form-field">
+        <label for="answerText">日本語表現<span class="required-mark">*</span></label>
+        <textarea
+          id="answerText"
+          v-model="form.answerText"
+          rows="3"
+          :aria-invalid="fieldErrors.answerText ? 'true' : 'false'"
+          @input="clearFieldError('answerText')"
+        ></textarea>
+        <p v-if="fieldErrors.answerText" class="field-error">{{ fieldErrors.answerText }}</p>
+      </div>
 
-    <div class="form-field">
-      <label for="expressionMeaning">表現及び中国語意味<span class="required-mark">*</span></label>
-      <textarea
-        id="expressionMeaning"
-        v-model="form.expressionMeaning"
-        rows="3"
-        :aria-invalid="fieldErrors.expressionMeaning ? 'true' : 'false'"
-        @input="clearFieldError('expressionMeaning')"
-      ></textarea>
-      <p v-if="fieldErrors.expressionMeaning" class="field-error">
-        {{ fieldErrors.expressionMeaning }}
-      </p>
-    </div>
+      <div class="form-field">
+        <label for="expressionMeaning"
+          >表現及び中国語意味<span class="required-mark">*</span></label
+        >
+        <textarea
+          id="expressionMeaning"
+          v-model="form.expressionMeaning"
+          rows="3"
+          :aria-invalid="fieldErrors.expressionMeaning ? 'true' : 'false'"
+          @input="clearFieldError('expressionMeaning')"
+        ></textarea>
+        <p v-if="fieldErrors.expressionMeaning" class="field-error">
+          {{ fieldErrors.expressionMeaning }}
+        </p>
+      </div>
 
-    <div class="form-field">
-      <label for="note">備考</label>
-      <textarea id="note" v-model="form.note" rows="3"></textarea>
+      <div class="form-field">
+        <label for="note">備考</label>
+        <textarea id="note" v-model="form.note" rows="3"></textarea>
+      </div>
     </div>
 
     <!-- 戻る操作を左端、主要操作(登録)を右端に配置する -->
@@ -172,6 +177,25 @@ function closeCompletionMessage() {
 <style scoped>
 .completion-hint {
   font-size: 0.9rem;
+}
+
+/* 4つの入力欄を同じ幅の2列に並べ、縦方向の長さを抑える */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+/* 項目間の間隔は grid の gap で取るため、共通スタイルの下余白を打ち消す */
+.form-grid .form-field {
+  margin-bottom: 0;
+}
+
+/* 画面幅が狭い場合は2列にせず、従来どおり1列に並べる */
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ボタン行はフォームと同じ幅を使い、2つのボタンを左右の端に寄せる */
