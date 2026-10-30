@@ -1,0 +1,190 @@
+/*
+ * 全画面(S01～S04)共通のスタイル。
+ *
+ * 画面ごとの細かい配置は各 .vue ファイルの <style scoped> に書き、
+ * ここにはボタン・入力欄・メッセージ等、複数画面で同じ見た目にしたい部品のみを定義する。
+ */
+
+:root {
+  --color-text: #222;
+  --color-muted: #666;
+  --color-border: #ccc;
+  --color-bg: #f6f7f9;
+  --color-surface: #fff;
+  --color-primary: #2f6fb3;
+  --color-primary-hover: #255a92;
+  --color-error: #b3261e;
+  --color-error-bg: #fdecea;
+  --color-success: #1e6b34;
+  --color-success-bg: #e8f5ec;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ---- 画面の見出し ---- */
+.page-title {
+  margin: 0 0 20px;
+  font-size: 1.5rem;
+}
+
+/* ---- 内容をまとめる白い枠 ---- */
+.card {
+  padding: 20px 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+/* ---- ボタン(<button> と、ボタンとして見せる <RouterLink> の両方に使う) ---- */
+.btn {
+  display: inline-block;
+  min-width: 120px;
+  padding: 8px 20px;
+  color: var(--color-text);
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #eef1f5;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+/* 削除など、取り消せない操作のボタン */
+.btn-danger {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.btn-danger:hover {
+  background: var(--color-error-bg);
+}
+
+/* 画面下部の操作ボタンを横に並べる */
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ---- 入力フォーム ---- */
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.form-field textarea,
+.form-field input {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.form-field textarea[aria-invalid='true'],
+.form-field input[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+/* 入力欄とボタンを横に並べる(検索条件など) */
+.inline-field {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.inline-field input {
+  flex: 1;
+}
+
+.required-mark {
+  margin-left: 4px;
+  color: var(--color-error);
+}
+
+.field-error {
+  margin: 4px 0 0;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+.form-note {
+  margin: 0 0 16px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* ---- 画面上部に表示するメッセージ(成功・エラー) ---- */
+.message {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 4px;
+}
+
+.message p {
+  margin: 0;
+}
+
+.message-error {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.message-success {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+/* 結果が0件である等、エラーではないお知らせ */
+.message-info {
+  color: var(--color-text);
+  background: #eef1f5;
+}
+
+/* 「OK」ボタン付きのメッセージ(MSG-01～04) */
+.message-with-action {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
