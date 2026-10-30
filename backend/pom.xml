@@ -94,6 +94,36 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!--
+				V1通常利用時の画面配信用。
+				frontend で事前にビルドした成果物(frontend/dist)を、JAR作成直前(prepare-package)に
+				target/classes/static へコピーする。Spring Boot は classpath:/static/ のファイルを自動で配信するため、
+				JARを起動するだけで画面(Vue)とREST APIを同じ http://localhost:8080 から利用できる。
+				・npm のビルドはMavenから実行しない(package 前に frontend で npm run build を実行しておく)
+				・frontend/dist が存在しない場合は何もコピーされない(テストやJAR作成自体は失敗しない)
+				・コピー先は target 配下のため、生成物が src やGitに混ざらない
+				maven-resources-plugin はMaven標準のプラグインで、バージョンはSpring Bootの親POMで管理されている。
+			-->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-frontend-dist</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.basedir}/../frontend/dist</directory>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
