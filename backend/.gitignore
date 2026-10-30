@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### SQLite 実行時データ ###
+# DBファイル等の実行時データはGit管理対象外とする。
+# SQLiteは親ディレクトリを自動作成しないため、data/ ディレクトリ自体は .gitkeep で保持する。
+data/*
+!data/.gitkeep

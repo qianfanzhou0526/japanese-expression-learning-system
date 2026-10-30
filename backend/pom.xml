@@ -43,6 +43,28 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!--
+			SQLite JDBCドライバ。
+			JPA(Hibernate)は最終的にJDBC経由でDBへ接続するため、SQLite用のドライバが必須。
+			本ライブラリはSQLiteエンジン本体も同梱しているため、端末へ別途SQLiteをインストールする必要はない。
+			バージョンはSpring Bootの依存関係管理(BOM)に従うため記載しない。
+		-->
+		<dependency>
+			<groupId>org.xerial</groupId>
+			<artifactId>sqlite-jdbc</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!--
+			Hibernate用SQLite方言(Dialect)。
+			Dialectは「どのDB向けのSQLを生成するか」をHibernateに教える部品。
+			Hibernate本体はSQLite用Dialectを持たず、コミュニティ版のこのライブラリに含まれている。
+			バージョンはSpring Bootが管理するHibernateのバージョンに合わせて自動解決される。
+		-->
+		<dependency>
+			<groupId>org.hibernate.orm</groupId>
+			<artifactId>hibernate-community-dialects</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
