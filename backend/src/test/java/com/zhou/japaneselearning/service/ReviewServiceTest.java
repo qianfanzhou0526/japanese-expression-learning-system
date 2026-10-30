@@ -14,6 +14,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -406,14 +407,22 @@ class ReviewServiceTest {
             verify(repository, never()).save(any());
         }
 
+        /**
+         * ReviewConflictException が発生し、その拒否理由が期待どおりであることを確認する。
+         * API層はメッセージ文言ではなく拒否理由でエラーコードを決めるため、理由を検証する。
+         */
+        private void assertConflict(ThrowingCallable call, ReviewConflictException.Reason expectedReason) {
+            assertThatThrownBy(call)
+                    .isInstanceOfSatisfying(ReviewConflictException.class,
+                            ex -> assertThat(ex.getReason()).isEqualTo(expectedReason));
+        }
+
         @ParameterizedTest
         @EnumSource(ReviewResult.class)
         void 当日すでに採点済みの場合は競合として拒否(ReviewResult result) {
             LearningExpression e = givenExpression(LearningStage.DAILY, 2, TODAY, TODAY);
 
-            assertThatThrownBy(() -> service.recordReviewResult(ID, result))
-                    .isInstanceOf(ReviewConflictException.class)
-                    .hasMessageContaining("すでに採点済み");
+            assertConflict(() -> service.recordReviewResult(ID, result), ReviewConflictException.Reason.ALREADY_REVIEWED_TODAY);
 
             assertUnchanged(e, LearningStage.DAILY, 2, TODAY, TODAY);
         }
@@ -432,9 +441,7 @@ class ReviewServiceTest {
         void MASTEREDは競合として拒否_最終復習日も正誤回数も更新しない(ReviewResult result) {
             LearningExpression e = givenExpression(LearningStage.MASTERED, 0, null, TODAY.minusDays(30));
 
-            assertThatThrownBy(() -> service.recordReviewResult(ID, result))
-                    .isInstanceOf(ReviewConflictException.class)
-                    .hasMessageContaining("MASTERED");
+            assertConflict(() -> service.recordReviewResult(ID, result), ReviewConflictException.Reason.REVIEW_NOT_ALLOWED);
 
             assertUnchanged(e, LearningStage.MASTERED, 0, null, TODAY.minusDays(30));
         }
@@ -444,9 +451,7 @@ class ReviewServiceTest {
         void 予定日が翌日の表現は競合として拒否_境界値(ReviewResult result) {
             LearningExpression e = givenExpression(LearningStage.NEW, 0, TODAY.plusDays(1), null);
 
-            assertThatThrownBy(() -> service.recordReviewResult(ID, result))
-                    .isInstanceOf(ReviewConflictException.class)
-                    .hasMessageContaining("復習予定日");
+            assertConflict(() -> service.recordReviewResult(ID, result), ReviewConflictException.Reason.REVIEW_NOT_DUE);
 
             assertUnchanged(e, LearningStage.NEW, 0, TODAY.plusDays(1), null);
         }
@@ -461,11 +466,10 @@ class ReviewServiceTest {
         }
 
         @Test
-        void MASTERED以外で予定日がNULLのデータは競合として拒否() {
+        void MASTERED以外で予定日がNULLのデータは採点対象外として拒否() {
             LearningExpression e = givenExpression(LearningStage.DAILY, 0, null, null);
 
-            assertThatThrownBy(() -> service.recordReviewResult(ID, ReviewResult.CORRECT))
-                    .isInstanceOf(ReviewConflictException.class);
+            assertConflict(() -> service.recordReviewResult(ID, ReviewResult.CORRECT), ReviewConflictException.Reason.REVIEW_NOT_ALLOWED);
 
             assertUnchanged(e, LearningStage.DAILY, 0, null, null);
         }

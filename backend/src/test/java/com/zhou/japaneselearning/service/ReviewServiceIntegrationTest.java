@@ -128,8 +128,8 @@ class ReviewServiceIntegrationTest {
         // 2回目は INCORRECT とする。誤って適用されれば段階・連続正解・累計誤答・予定日がすべて変わるため、
         // 「更新されていないこと」をより確実に検出できる
         assertThatThrownBy(() -> reviewService.recordReviewResult(ID, ReviewResult.INCORRECT))
-                .isInstanceOf(ReviewConflictException.class)
-                .hasMessageContaining("すでに採点済み");
+                .isInstanceOfSatisfying(ReviewConflictException.class,
+                        ex -> assertThat(ex.getReason()).isEqualTo(ReviewConflictException.Reason.ALREADY_REVIEWED_TODAY));
 
         // ---- 6. 2回目の採点によってDBのデータが追加更新されていないこと(全列が1回目の後と同一) ----
         assertThat(selectRow()).isEqualTo(rowAfterFirst);

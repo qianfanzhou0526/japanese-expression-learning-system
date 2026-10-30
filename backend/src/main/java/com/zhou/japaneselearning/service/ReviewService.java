@@ -125,19 +125,28 @@ public class ReviewService {
      * いずれも「現在状態との競合」(HTTP 409相当)であり、どの判定で拒否されてもデータは更新しない。</p>
      */
     private static void verifyReviewable(LearningExpression expression, LocalDate today) {
+        int id = expression.getExpressionId();
         // 同一表現は1学習日につき最大1回のみ採点可能(詳細設計書 5.1-3)
         if (today.equals(expression.getLastReviewDate())) {
-            throw new ReviewConflictException("表現ID " + expression.getExpressionId() + " は本日すでに採点済みです。");
+            throw new ReviewConflictException(ReviewConflictException.Reason.ALREADY_REVIEWED_TODAY,
+                    "表現ID " + id + " は本日すでに採点済みです。");
         }
-        // MASTERED は通常出題せず、V1では再活性化しない(詳細設計書 5.2 / 確認事項②で409相当と確定)
+        // MASTERED は通常出題せず、V1では再活性化しない(詳細設計書 5.2)
         if (expression.getLearningStage() == LearningStage.MASTERED) {
-            throw new ReviewConflictException("表現ID " + expression.getExpressionId() + " は定着済み(MASTERED)のため採点できません。");
+            throw new ReviewConflictException(ReviewConflictException.Reason.REVIEW_NOT_ALLOWED,
+                    "表現ID " + id + " は定着済み(MASTERED)のため採点できません。");
         }
-        // 次回復習予定日が当日より後の表現は採点しない(確認事項③で詳細設計書への追加事項として確定)。
-        // MASTERED以外で予定日がNULLになることは通常ないが、復習対象(BIZ-03)にも含まれないため同様に拒否する。
+        // MASTERED以外で予定日がNULLになることは通常ない(データ不整合)。
+        // 復習対象(BIZ-03)にも含まれず「予定日前」でもないため、採点対象外の状態として拒否する。
         LocalDate nextReviewDate = expression.getNextReviewDate();
-        if (nextReviewDate == null || nextReviewDate.isAfter(today)) {
-            throw new ReviewConflictException("表現ID " + expression.getExpressionId() + " はまだ復習予定日になっていません。");
+        if (nextReviewDate == null) {
+            throw new ReviewConflictException(ReviewConflictException.Reason.REVIEW_NOT_ALLOWED,
+                    "表現ID " + id + " は復習予定日が設定されていないため採点できません。");
+        }
+        // 次回復習予定日が当日より後の表現は採点しない(詳細設計書への追加事項)
+        if (nextReviewDate.isAfter(today)) {
+            throw new ReviewConflictException(ReviewConflictException.Reason.REVIEW_NOT_DUE,
+                    "表現ID " + id + " はまだ復習予定日になっていません。");
         }
     }
 
